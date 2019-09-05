@@ -6,7 +6,9 @@ import "fmt"
 
 // TODO: implement REST API using SSL
 
-// using like https://localhost:8585/api/rest/v1/fuel/vehicles/1
+// TODO: implement Auth /api/user/new using JWT
+
+// using like https://localhost:8585/api/v1/fuel/vehicles/1
 
 // example of mux https://metanit.com/go/web/1.4.php
 
