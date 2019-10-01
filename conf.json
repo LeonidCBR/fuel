@@ -1,0 +1,8 @@
+{
+"IP":"localhost",
+"Port":8585,
+"UseTLS":true,
+"Certificate":"certs/server.cert.pem",
+"Key":"certs/server.key.pem",
+"DB":"fuel.db"
+}
