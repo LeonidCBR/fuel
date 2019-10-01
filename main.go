@@ -5,18 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// TODO: implement work with SQLite3
-
-// TODO: implement REST API using SSL
-
 // TODO: implement Auth /api/user/new using JWT
 
-// using like https://localhost:8585/api/v1/fuel/vehicles/1
+// using like:
+// https://localhost:8585/api/v1/fuel/vehicles
+// https://localhost:8585/api/v1/fuel/vehicles/create
+// https://localhost:8585/api/v1/fuel/vehicles/show?id=3
 
 // example of mux https://metanit.com/go/web/1.4.php
 
@@ -35,11 +35,14 @@ type vehicle struct {
 	kind  string
 }
 
-func main() {
+var config configuration
+var db *sql.DB
+
+func readConfig() {
 
 	const CONFING = "conf.json"
 
-	println("Reading config file (conf.json)")
+	fmt.Printf("Reading config file (%s)\n", CONFING)
 
 	file, err := os.Open(CONFING)
 	if err != nil {
@@ -49,22 +52,55 @@ func main() {
 
 	decoder := json.NewDecoder(file)
 
-	config := configuration{}
-
 	err = decoder.Decode(&config)
 	if err != nil {
 		log.Fatalln("Error while decoding:", err)
 	}
 
-	db, err := sql.Open("sqlite3", config.DB)
+}
+
+func init() {
+
+	readConfig()
+
+	var err error
+	db, err = sql.Open("sqlite3", config.DB)
 	if err != nil {
 		log.Fatalln("Can not connect to DB:", err)
 	}
-	defer db.Close()
+
+	if err = db.Ping(); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func main() {
+
+	http.HandleFunc("/api/v1/fuel/vehicles", vehiclesIndex)
+
+	listenAddress := fmt.Sprintf("%s:%d", config.IP, config.Port)
+
+	if config.UseTLS {
+		fmt.Printf("Starting service at https://%s\n", listenAddress)
+		http.ListenAndServeTLS(listenAddress, config.Certificate, config.Key, nil)
+	} else {
+		fmt.Printf("Starting service at http://%s\n", listenAddress)
+		http.ListenAndServe(listenAddress, nil)
+	}
+
+}
+
+func vehiclesIndex(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "GET" {
+		http.Error(w, http.StatusText(405), 405)
+		return
+	}
 
 	rows, err := db.Query("SELECT id, model, type FROM vehicles")
 	if err != nil {
-		log.Fatalln("Error while selecting:", err)
+		http.Error(w, http.StatusText(500), 500)
+		return
 	}
 	defer rows.Close()
 
@@ -73,31 +109,18 @@ func main() {
 		veh := new(vehicle)
 		err := rows.Scan(&veh.id, &veh.model, &veh.kind)
 		if err != nil {
-			log.Fatalln("Scan error:", err)
+			http.Error(w, http.StatusText(500), 500)
+			return
 		}
 		vehicles = append(vehicles, veh)
 	}
 	if err = rows.Err(); err != nil {
-		log.Fatalln("Rows error:", err)
+		http.Error(w, http.StatusText(500), 500)
+		return
 	}
 
 	for _, veh := range vehicles {
-		fmt.Printf("%d. %s (%s)\n", veh.id, veh.model, veh.kind)
+		fmt.Fprintf(w, "%d. %s (%s)\n", veh.id, veh.model, veh.kind)
 	}
-	/*
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, "hello")
-		})
 
-		listenAddress := fmt.Sprintf("%s:%d", config.IP, config.Port)
-		fmt.Println("Starting service at", listenAddress)
-
-		if !config.UseTLS {
-			println("not use TLS")
-			http.ListenAndServe(listenAddress, nil)
-		} else {
-			println("using TLS")
-			http.ListenAndServeTLS(listenAddress, config.Certificate, config.Key, nil)
-		}
-	*/
 }
