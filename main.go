@@ -56,7 +56,7 @@ func main() {
 		log.Fatalln("Error while decoding:", err)
 	}
 
-	db, err := sql.Open("sqlite3", "fuel.db")
+	db, err := sql.Open("sqlite3", config.DB)
 	if err != nil {
 		log.Fatalln("Can not connect to DB:", err)
 	}
