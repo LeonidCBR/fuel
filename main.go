@@ -35,9 +35,14 @@ type Vehicle struct {
 	Kind  string `json:"type"`
 }
 
-//type vehicleJSON map[string]interface{}
+type Response struct {
+	Status   string    `json:"status"`
+	Total    int       `json:"total"`
+	Vehicles []Vehicle `json:"vehicles"`
+}
 
 var config configuration
+
 var db *sql.DB
 
 func readConfig() {
@@ -96,14 +101,14 @@ func vehiclesIndex(w http.ResponseWriter, r *http.Request) {
 
 	const queryVehicles = "SELECT id, model, type FROM vehicles"
 
-	// Set headers to json
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
 	if r.Method != "GET" {
 		http.Error(w, http.StatusText(405), 405)
 		return
 	}
+
+	// Set headers to json
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 
 	rows, err := db.Query(queryVehicles)
 	if err != nil {
@@ -112,51 +117,39 @@ func vehiclesIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	vehicles := make([]*Vehicle, 0)
-	//vehicles := make([]vehicle, 0)
-	//vehiclesJSON := make([]vehicleJSON, 0)
+	response := new(Response)
+	total := 0
 	for rows.Next() {
-		vehicle := new(Vehicle)
-		//var veh vehicle
-		//var id, model, kind string
-		//err := rows.Scan(&id, &model, &kind)
-		//vehJSON := make(vehicleJSON)
-		//vehJSON["id"] = id
-		//vehJSON["type"] = kind
-		//vehJSON["model"] = model
+		var vehicle Vehicle
 		err := rows.Scan(&vehicle.ID, &vehicle.Model, &vehicle.Kind)
 		if err != nil {
 			http.Error(w, http.StatusText(500), 500)
 			return
 		}
-		vehicles = append(vehicles, vehicle)
-		//vehiclesJSON = append(vehiclesJSON, vehJSON)
+		response.Vehicles = append(response.Vehicles, vehicle)
+		total++
 	}
 	if err = rows.Err(); err != nil {
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
-	//	println("marshaling...")
-	//	b, err := json.Marshal(vehiclesJSON)
-	//	//err = json.NewEncoder(w).Encode(&t)
+	/*
+		result, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+		w.Write(result)
+	*/
 
-	result, err := json.Marshal(vehicles)
+	response.Status = "ok"
+	response.Total = total
+
+	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
-	/*
-		vehicle := &Vehicle{
-			Id:    55,
-			Model: "infinity fx",
-			Kind:  "car"}
-		data, err := json.Marshal(vehicle)
-		if err != nil {
-			http.Error(w, http.StatusText(500), 500)
-			return
-		}
-	*/
-	w.Write(result)
 }
