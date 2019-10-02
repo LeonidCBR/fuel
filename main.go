@@ -47,7 +47,7 @@ var db *sql.DB
 
 func readConfig() {
 
-	const CONFING = "conf.json"
+	const CONFING = "fuel.conf"
 
 	fmt.Printf("Reading config file (%s)\n", CONFING)
 
