@@ -64,11 +64,15 @@ func readConfig() {
 		log.Fatalln("Error while decoding:", err)
 	}
 
+	// TODO: check files existing in folders from config
+
 }
 
 func init() {
 
 	readConfig()
+
+	fmt.Println("DB file:", config.DB)
 
 	var err error
 	db, err = sql.Open("sqlite3", config.DB)
