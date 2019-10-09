@@ -11,10 +11,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// TODO: get config name from args
-
-// TODO: check files existing in folders from config
-
 // TODO: implement Auth /api/user/new using JWT
 
 /*
@@ -94,7 +90,6 @@ func readConfig() {
 		conf = "./" + CONFIG
 	}
 
-	// TODO: get config name from args
 	if len(os.Args) == 3 && os.Args[1] == "-c" && os.Args[2] != "" {
 
 		// Set the config path with a high priority
