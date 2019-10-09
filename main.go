@@ -74,13 +74,40 @@ var db *sql.DB
 
 func readConfig() {
 
-	const CONFING = "fuel.conf"
+	const CONFIG = "fuel.conf"
+
+	const CONFIGPATH = "/usr/local/etc/fuel/"
+
+	// Look for config file at path from args, same path (./), /usr/local/etc/fuel/
+
+	conf := ""
+
+	if _, err := os.Stat(CONFIGPATH + CONFIG); err == nil {
+
+		// Set the config path with a low priority
+		conf = CONFIGPATH + CONFIG
+	}
+
+	if _, err := os.Stat("./" + CONFIG); err == nil {
+
+		// Set the config path with a normal priority
+		conf = "./" + CONFIG
+	}
 
 	// TODO: get config name from args
+	if len(os.Args) == 3 && os.Args[1] == "-c" && os.Args[2] != "" {
 
-	fmt.Printf("Reading config file (%s)\n", CONFING)
+		// Set the config path with a high priority
+		conf = os.Args[2]
+	}
 
-	file, err := os.Open(CONFING)
+	if conf == "" {
+		log.Fatalln("Can not find config file!")
+	}
+
+	fmt.Printf("Reading config file (%s)\n", conf)
+
+	file, err := os.Open(conf)
 	if err != nil {
 		log.Fatalln("Can not open config file", err)
 	}
@@ -93,11 +120,29 @@ func readConfig() {
 		log.Fatalln("Error while decoding:", err)
 	}
 
-	// TODO: check files existing in folders from config
+	// Check files existing in folders from config
 
+	if _, err := os.Stat(config.DB); os.IsNotExist(err) {
+		log.Fatalln("DB file does not exist!", err)
+	}
+
+	if _, err := os.Stat(config.Certificate); os.IsNotExist(err) {
+		log.Fatalln("Certificate does not exist!", err)
+	}
+
+	if _, err := os.Stat(config.Key); os.IsNotExist(err) {
+		log.Fatalln("File with private key does not exist!", err)
+	}
 }
 
 func init() {
+
+	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
+
+		println("USAGE:")
+		println("fuel [-c /path/to/config/file]")
+		os.Exit(0)
+	}
 
 	readConfig()
 
