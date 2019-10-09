@@ -53,6 +53,15 @@ type Vehicle struct {
 	Kind  string `json:"type"`
 }
 
+type GasUp struct {
+	ID            int64   `json:"id"`
+	VehicleID     int64   `json:"id_vehicle"`
+	RefuelingDate string  `json:"refueling_date"`
+	Liters        float32 `json:"liters"`
+	Cost          float32 `json:"cost"`
+	Odometer      int     `json:"odometer"`
+}
+
 type Response struct {
 	Status   string    `json:"status"`
 	Total    int       `json:"total"`
@@ -112,6 +121,9 @@ func main() {
 
 	// add new vehicle
 	http.HandleFunc("/api/v1/fuel/vehicles/create", vehiclesCreate)
+
+	// add new gas up
+	http.HandleFunc("/api/v1/fuel/gasup/create", gasUpCreate)
 
 	listenAddress := fmt.Sprintf("%s:%d", config.IP, config.Port)
 
@@ -235,6 +247,62 @@ func vehiclesCreate(w http.ResponseWriter, r *http.Request) {
 	// make response to client
 
 	res, err := json.Marshal(vehicle)
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(res)
+
+}
+
+func gasUpCreate(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "POST" {
+		http.Error(w, http.StatusText(405), 405)
+		return
+	}
+
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, http.StatusText(415), 415)
+		return
+	}
+
+	// unmarshal json data from body
+	var gasUp GasUp
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&gasUp)
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	//fmt.Printf("(%d, %s, %.2f, %.2f, %d)", gasUp.VehicleID, gasUp.RefuelingDate, gasUp.Liters, gasUp.Cost, gasUp.Odometer)
+
+	if gasUp.VehicleID == 0 || gasUp.RefuelingDate == "" || gasUp.Liters == 0 || gasUp.Cost == 0 || gasUp.Odometer == 0 {
+		sendError(w, 1)
+		return
+	}
+
+	result, err := db.Exec("INSERT INTO fuel (id_vehicle, refueling_date, liters, cost, odometer) VALUES($1, $2, $3, $4, $5)", gasUp.VehicleID, gasUp.RefuelingDate, gasUp.Liters, gasUp.Cost, gasUp.Odometer)
+	if err != nil {
+		sendError(w, 2)
+		return
+	}
+
+	newID, err := result.LastInsertId()
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	gasUp.ID = newID
+
+	// make response to client
+
+	res, err := json.Marshal(gasUp)
 	if err != nil {
 		http.Error(w, http.StatusText(500), 500)
 		return
