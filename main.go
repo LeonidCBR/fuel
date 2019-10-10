@@ -64,6 +64,12 @@ type Response struct {
 	Vehicles []Vehicle `json:"vehicles"`
 }
 
+type ResponseGasUp struct {
+	Status     string  `json:"status"`
+	Total      int     `json:"total"`
+	GasUpArray []GasUp `json:"gasup"`
+}
+
 var config configuration
 
 var db *sql.DB
@@ -159,6 +165,9 @@ func main() {
 	// get list of vehicles
 	http.HandleFunc("/api/v1/fuel/vehicles", vehiclesIndex)
 
+	// get list of gas up
+	http.HandleFunc("/api/v1/fuel/gasup/show", gasUpIndex)
+
 	// add new vehicle
 	http.HandleFunc("/api/v1/fuel/vehicles/create", vehiclesCreate)
 
@@ -229,6 +238,59 @@ func vehiclesIndex(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	*/
+}
+
+func gasUpIndex(w http.ResponseWriter, r *http.Request) {
+
+	const queryGasUp = "SELECT id, id_vehicle, refueling_date, liters, cost, odometer FROM fuel WHERE id_vehicle = $1"
+
+	if r.Method != "GET" {
+		http.Error(w, http.StatusText(405), 405)
+		return
+	}
+
+	idVehicle := r.FormValue("vehicle")
+	if idVehicle == "" {
+		http.Error(w, http.StatusText(400), 400)
+		return
+	}
+
+	rows, err := db.Query(queryGasUp, idVehicle)
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	defer rows.Close()
+
+	responseGasUp := new(ResponseGasUp)
+	total := 0
+	for rows.Next() {
+		var gasUp GasUp
+		err := rows.Scan(&gasUp.ID, &gasUp.VehicleID, &gasUp.RefuelingDate, &gasUp.Liters, &gasUp.Cost, &gasUp.Odometer)
+		if err != nil {
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+		responseGasUp.GasUpArray = append(responseGasUp.GasUpArray, gasUp)
+		total++
+	}
+	if err = rows.Err(); err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	responseGasUp.Status = "ok"
+	responseGasUp.Total = total
+
+	result, err := json.Marshal(responseGasUp)
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(result)
+
 }
 
 func vehiclesCreate(w http.ResponseWriter, r *http.Request) {
